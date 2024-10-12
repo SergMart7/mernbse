@@ -1,37 +1,60 @@
-const express = require('express');
-const path = require('path');
-const { ApolloServer } = require('@apollo/server');
-const { expressMiddleware } = require('@apollo/server/express4');
-const { authMiddleware } = require('./utils/auth');
-const { typeDefs, resolvers } = require('./schemas');
-const db = require('./config/connection');
+require("dotenv").config();
+
+const { ApolloServer } = require("apollo-server-express");
+const express = require("express");
+const path = require("path");
+const helmet = require("helmet");
+const cors = require("cors");
+const { typeDefs, resolvers } = require("./schemas");
+const db = require("./config/connection");
+const { authMiddleware } = require("./utils/auth");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Create a new Apollo Server instance
+// Initialize Apollo Server
 const server = new ApolloServer({
   typeDefs,
   resolvers,
   context: authMiddleware,
+  cache: "bounded",
+  persistedQueries: false,
 });
 
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+// Middleware
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", "https://static.cloudflareinsights.com"],
+        connectSrc: ["'self'", "https://www.googleapis.com"],
+        imgSrc: ["'self'", "data:", "https://books.google.com"],
+      },
+    },
+  })
+);
+app.use(cors());
 
-// if we're in production, serve client/build as static assets
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../client/build')));
-}
+server.start().then(() => {
+  server.applyMiddleware({ app, path: "/graphql" });
 
-// Apply Apollo middleware once the server has started
-async function startServer() {
-  await server.start();
-  app.use('/graphql', expressMiddleware(server));
-  
-  db.once('open', () => {
-    app.listen(PORT, () => console.log(`🌍 Now listening on localhost:${PORT}`));
+  app.use(express.urlencoded({ extended: false }));
+  app.use(express.json());
+
+  if (process.env.NODE_ENV === "production") {
+    app.use(express.static(path.join(__dirname, "../client/dist")));
+  }
+
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(__dirname, "../client/dist/index.html"));
   });
-}
 
-startServer();
+  db.once("open", () => {
+    app.listen(PORT, () => {
+      console.log(
+        `🚀 Server ready at http://localhost:${PORT}${server.graphqlPath}`
+      );
+    });
+  });
+});

@@ -1,12 +1,12 @@
-const { gql } = require('graphql-tag');
+const { gql } = require("apollo-server-express");
 
 const typeDefs = gql`
   type User {
     _id: ID
     username: String
     email: String
-    savedBooks: [Book]
     bookCount: Int
+    savedBooks: [Book]
   }
 
   type Book {
@@ -19,19 +19,12 @@ const typeDefs = gql`
   }
 
   type Auth {
-    token: ID!
+    token: ID
     user: User
   }
 
   type Query {
     me: User
-  }
-
-  type Mutation {
-    login(email: String!, password: String!): Auth
-    addUser(username: String!, email: String!, password: String!): Auth
-    saveBook(bookData: BookInput!): User
-    removeBook(bookId: String!): User
   }
 
   input BookInput {
@@ -41,6 +34,13 @@ const typeDefs = gql`
     title: String
     image: String
     link: String
+  }
+
+  type Mutation {
+    login(email: String!, password: String!): Auth
+    addUser(username: String!, email: String!, password: String!): Auth
+    saveBook(bookData: BookInput!): User
+    removeBook(bookId: String!): User
   }
 `;
 
